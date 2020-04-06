@@ -18,15 +18,21 @@ export interface RecursiveRule {
 }
 
 export interface StaticRule {
-  path: string,
-  type: string,
-  computed: string
+  path: string;
+  type: string;
+  computed: string;
 }
 
 interface Rule {
-  static: StaticRule[],
-  recursive: RecursiveRule[],
-  ignore: string[],
+  static: StaticRule[];
+  recursive: RecursiveRule[];
+  ignore: string[];
+  application: AppRule;
+}
+
+export interface AppRule {
+  path: string;
+  type: string;
 }
 
 const platform = os.platform();
@@ -63,7 +69,21 @@ const rules: Rule = {
     type: 'yarn_cache',
     computed: './**'
   }],
+  application: {} as AppRule,
   ignore: []
+}
+
+
+if (platform == 'darwin') {
+  rules.static.push({
+    type: 'trash',
+    path: home.resolve('~/.Trash'),
+    computed: './**'
+  })
+  rules.application = {
+    path: '/Applications',
+    type: 'application'
+  }
 }
 
 rules.ignore = rules.recursive.reduce((arr, item) => (arr.concat(item.has)), []);

@@ -9,8 +9,9 @@ import * as events from 'events';
 import * as multimatch from 'multimatch';
 import rules, { Parser, StaticRule } from './rules';
 import { lastAccess } from './analysis';
+import libraryParse from './library';
 
-interface ProjectInfo {
+export interface ProjectInfo {
   path: string;
   formatSize: string;
   size: number;
@@ -19,12 +20,15 @@ interface ProjectInfo {
   type: string;
   lastATime?: number;
   lastFile?: string;
+  name?: string;
+  icon?: string;
 }
 
 interface Options {
   path: string;
   ignore?: string[];
   static?: boolean;
+  library?: boolean;
 }
 
 class FsSystem extends events.EventEmitter {
@@ -33,11 +37,13 @@ class FsSystem extends events.EventEmitter {
   public ignoreList: string[];
   private isRemove: boolean;
   private isStatic: boolean;
+  private library: boolean;
   constructor(options?: Options) {
     super();
     this.workPath = options.path;
     this.ignoreList = (typeof options.ignore) === 'undefined' ? IGNORE_FILES : options.ignore.concat(IGNORE_FILES);
     this.isStatic = (typeof options.static) === 'undefined' ? true : options.static;
+    this.library = (typeof options.library) === 'undefined' ? true : options.library;
     this.projectTree = [];
     this.isRemove = false;
   }
@@ -82,11 +88,13 @@ class FsSystem extends events.EventEmitter {
       const itemPath = item.path;
       item.size = this.computedSize(path.join(itemPath, item.computed));
       item.formatSize = byteConvert(item.size);
-      const [lastAtime, lastFile] = lastAccess(itemPath, {
-        ignore: [...(rules.ignore), ...(this.ignoreList)]
-      });
-      item.lastATime = lastAtime;
-      item.lastFile = lastFile;
+      if (item.type !== 'application') {
+        const [lastAtime, lastFile] = lastAccess(itemPath, {
+          ignore: [...(rules.ignore), ...(this.ignoreList)]
+        });
+        item.lastATime = lastAtime;
+        item.lastFile = lastFile;
+      }
       this.emitComputed({
         current: i,
         path: itemPath,
@@ -108,6 +116,10 @@ class FsSystem extends events.EventEmitter {
     this.loopReadFile2(this.workPath);
     if (this.isStatic) {
       this.loopStatic(rules.static);
+    }
+    if (this.library) {
+      const infos = libraryParse(rules.application);
+      this.projectTree.push(...infos);
     }
     this.scannerCallback();
   }
